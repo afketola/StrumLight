@@ -51,7 +51,10 @@
 
 	
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Strumlight needs Bluetooth to connect to your guitar</string>
+	<string>StrumLight needs Bluetooth to connect to your device.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>StrumLight needs Bluetooth access to discover and connect to devices.</string>
+
 
 </dict>
 </plist>

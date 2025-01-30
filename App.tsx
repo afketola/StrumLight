@@ -1,29 +1,27 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import OnboardingScreen from './src/screens/OnboardingScreen';
+import BluetoothSetupScreen from './src/screens/BluetoothSetupScreen';
 import HomeScreen from './src/screens/HomeScreen';
-import { SafeAreaView, StatusBar, StyleSheet } from 'react-native';
 
 const Stack = createStackNavigator();
 
 const App = (): React.JSX.Element => {
   return (
     <NavigationContainer>
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#121212" />
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Home" component={HomeScreen} />
-        </Stack.Navigator>
-      </SafeAreaView>
+      <Stack.Navigator 
+        screenOptions={{
+          headerShown: false,
+          cardStyle: { backgroundColor: '#FFFFFF' },
+        }}
+      >
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="BluetoothSetup" component={BluetoothSetupScreen} />
+        <Stack.Screen name="Home" component={HomeScreen} />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
-});
 
 export default App;
