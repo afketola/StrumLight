@@ -1236,7 +1236,7 @@ PODS:
     - React-jsiexecutor
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
-  - react-native-ble-plx (3.4.0):
+  - react-native-ble-plx (3.5.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2129,7 +2129,7 @@ SPEC CHECKSUMS:
   React-logger: 02e5802824aa9b15cb7df42e10a91abead83cd8d
   React-Mapbuffer: 99bd566147aaa78e872568be53ebca8a4449ddae
   React-microtasksnativemodule: 51e7813abf875408a0f367e473a65bbab6aa8481
-  react-native-ble-plx: e4f463a9f0f08f8d7ef4f858bd864ec55636907d
+  react-native-ble-plx: 6fc4914e37ea8236d5b4e0813ed264f721533e9b
   react-native-orientation-locker: cc6f357b289a2e0dd2210fea0c52cb8e0727fdaa
   react-native-safe-area-context: efd435f89b73d91f37438e5ac2d725f0e7adff95
   react-native-skia: c5f8270f3ca33ee60f31ba03bbfd4b41b0e0646f
