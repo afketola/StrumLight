@@ -1258,6 +1258,8 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-orientation-locker (1.7.0):
+    - React-Core
   - react-native-safe-area-context (5.1.0):
     - DoubleConversion
     - glog
@@ -1810,6 +1812,11 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - RNSound (0.11.2):
+    - React-Core
+    - RNSound/Core (= 0.11.2)
+  - RNSound/Core (0.11.2):
+    - React-Core
   - RNVectorIcons (10.2.0):
     - DoubleConversion
     - glog
@@ -1876,6 +1883,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-ble-plx (from `../node_modules/react-native-ble-plx`)
+  - react-native-orientation-locker (from `../node_modules/react-native-orientation-locker`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-skia (from `../node_modules/@shopify/react-native-skia`)"
   - React-nativeconfig (from `../node_modules/react-native/ReactCommon`)
@@ -1911,6 +1919,7 @@ DEPENDENCIES:
   - RNPermissions (from `../node_modules/react-native-permissions`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
+  - RNSound (from `../node_modules/react-native-sound`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -2000,6 +2009,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-ble-plx:
     :path: "../node_modules/react-native-ble-plx"
+  react-native-orientation-locker:
+    :path: "../node_modules/react-native-orientation-locker"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-skia:
@@ -2070,6 +2081,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
     :path: "../node_modules/react-native-screens"
+  RNSound:
+    :path: "../node_modules/react-native-sound"
   RNVectorIcons:
     :path: "../node_modules/react-native-vector-icons"
   Yoga:
@@ -2117,6 +2130,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 99bd566147aaa78e872568be53ebca8a4449ddae
   React-microtasksnativemodule: 51e7813abf875408a0f367e473a65bbab6aa8481
   react-native-ble-plx: e4f463a9f0f08f8d7ef4f858bd864ec55636907d
+  react-native-orientation-locker: cc6f357b289a2e0dd2210fea0c52cb8e0727fdaa
   react-native-safe-area-context: efd435f89b73d91f37438e5ac2d725f0e7adff95
   react-native-skia: c5f8270f3ca33ee60f31ba03bbfd4b41b0e0646f
   React-nativeconfig: cd0fbb40987a9658c24dab5812c14e5522a64929
@@ -2152,6 +2166,7 @@ SPEC CHECKSUMS:
   RNPermissions: 3f2ec62f82b2afc899b41d75512a0c41eb4c0ef8
   RNReanimated: 8a4ea733f88a33379150eb2e73b375e14de81e84
   RNScreens: 5d61e452b51e7c23b3fcb9f16c4967d683a60a9d
+  RNSound: 314cc5226453ef4a3314a196c65e8a65e5106a7b
   RNVectorIcons: bd818296a51dc2bb8c3bd97a3ca399df1afe216d
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: 78d74e245ed67bb94275a1316cdc170b9b7fe884

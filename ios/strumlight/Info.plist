@@ -56,5 +56,10 @@
 	<string>StrumLight needs Bluetooth access to discover and connect to devices.</string>
 
 
+	<key>UIAppFonts</key>
+	<array>
+	<string>Feather.ttf</string>
+	</array>
+
 </dict>
 </plist>
