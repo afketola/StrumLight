@@ -1,15 +1,29 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
-const GradientButton = ({ title, onPress }) => {
+interface GradientButtonProps {
+  title: string;
+  onPress: () => void;
+  style?: ViewStyle;
+  colors?: string[];
+}
+
+/**
+ * GradientButton
+ * - A reusable gradient-based button.
+ */
+const GradientButton: React.FC<GradientButtonProps> = ({
+  title,
+  onPress,
+  style,
+  colors = ['#FF9800', '#FFA726'],
+}) => {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.buttonContainer}>
+    <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={style}>
       <LinearGradient
-        colors={['#FF3366', '#FF9933', '#33CC33', '#3399FF', '#9933FF']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.button}
+        colors={colors}
+        style={styles.gradient}
       >
         <Text style={styles.buttonText}>{title}</Text>
       </LinearGradient>
@@ -17,21 +31,18 @@ const GradientButton = ({ title, onPress }) => {
   );
 };
 
+export default GradientButton;
+
 const styles = StyleSheet.create({
-  buttonContainer: {
-    width: '80%',
-    marginVertical: 10,
-  },
-  button: {
-    paddingVertical: 15,
-    borderRadius: 30,
-    alignItems: 'center',
+  gradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
   },
   buttonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
     color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
-
-export default GradientButton;

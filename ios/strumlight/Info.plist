@@ -55,6 +55,10 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>StrumLight needs Bluetooth access to discover and connect to devices.</string>
 
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Strumlight uses the microphone to capture audio for tuning your instrument</string>
+
+
 
 	<key>UIAppFonts</key>
 	<array>

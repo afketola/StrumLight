@@ -1,34 +1,64 @@
-import React from 'react';
-import { Text, StyleSheet } from 'react-native';
-import * as Animatable from 'react-native-animatable';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet } from 'react-native';
+import MusicNote from './MusicNote';
 
-type AnimatedTextProps = {
-  text: string;
-  delay?: number;
-  style?: object;
-};
+interface NoteData {
+  id: number;
+  pitch: string;
+  yOffset: number;
+  duration: number;
+}
 
-const AnimatedText: React.FC<AnimatedTextProps> = ({ text, delay = 500, style }) => {
+interface Props {
+  note: NoteData;
+  isPlaying: boolean;
+}
+
+/**
+ * AnimatedNote
+ * - Animates horizontally across the screen.
+ * - Renders an actual note shape from MusicNote.tsx
+ */
+const AnimatedNote: React.FC<Props> = ({ note, isPlaying }) => {
+  const translateX = useRef(new Animated.Value(600)).current; // Start off-screen to right
+
+  useEffect(() => {
+    if (isPlaying) {
+      // Animate from ~600 px to -100 px
+      Animated.timing(translateX, {
+        toValue: -100,
+        duration: note.duration,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      // If paused, you could stop or hold the animation
+      // But built-in Animated doesn't provide an easy 'pause'
+      // For a real pause/resume, consider react-native-reanimated
+    }
+  }, [isPlaying]);
+
+  const noteTop = 50 + note.yOffset; // 50 is a rough "middle" staff line offset
+
   return (
-    <Animatable.Text
-      animation="fadeInUp"
-      delay={delay}
-      style={[styles.text, style]}
-      useNativeDriver // Ensure it runs on the native driver
+    <Animated.View
+      style={[
+        styles.noteContainer,
+        {
+          transform: [{ translateX }],
+          top: noteTop,
+        },
+      ]}
     >
-      {text}
-    </Animatable.Text>
+      <MusicNote pitch={note.pitch} />
+    </Animated.View>
   );
 };
 
+export default AnimatedNote;
+
 const styles = StyleSheet.create({
-  text: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-    marginVertical: 10,
+  noteContainer: {
+    position: 'absolute',
   },
 });
-
-export default AnimatedText;

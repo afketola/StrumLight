@@ -1,35 +1,85 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Canvas, Path, Skia } from '@shopify/react-native-skia';
+// MusicStaff.tsx
+import React, { useState } from 'react';
+import { View, StyleSheet, Dimensions } from 'react-native';
+import Svg, { Line } from 'react-native-svg';
+import AnimatedNote from './AnimatedNote';
 
-const MusicStaff = () => {
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+interface NoteData {
+  id: number;
+  pitch: string;
+  yOffset: number;
+  duration: number;
+}
+
+interface MusicStaffProps {
+  notes: NoteData[];
+  isPlaying: boolean;
+}
+
+const MusicStaff: React.FC<MusicStaffProps> = ({ notes, isPlaying }) => {
+  const numberOfLines = 5;
+  const lineSpacing = SCREEN_HEIGHT / (numberOfLines + 1);
+
+  // Manage the play zone color (default: translucent white)
+  const [zoneColor, setZoneColor] = useState('rgba(255,255,255,0.2)');
+
+  const handleNoteInZone = (id: number) => {
+    setZoneColor('yellow');
+  };
+
+  const handleNoteCorrect = (id: number) => {
+    setZoneColor('green');
+    setTimeout(() => setZoneColor('rgba(255,255,255,0.2)'), 500);
+  };
+
+  const handleNoteMissed = (id: number) => {
+    setZoneColor('red');
+    setTimeout(() => setZoneColor('rgba(255,255,255,0.2)'), 500);
+  };
+
   return (
-    <View style={styles.container}>
-      <Canvas style={styles.canvas}>
-        {[1, 2, 3, 4, 5].map((line) => (
-          <Path
-            key={line}
-            path={Skia.Path.Make().moveTo(0, line * 20).lineTo(600, line * 20)}
-            strokeWidth={2}
-            color="white" // White staff for visibility
+    <View style={{ flex: 1 }}>
+      <Svg height={SCREEN_HEIGHT} width={SCREEN_WIDTH} style={StyleSheet.absoluteFill}>
+        {Array.from({ length: numberOfLines }).map((_, i) => (
+          <Line
+            key={i}
+            x1="0"
+            y1={(i + 1) * lineSpacing}
+            x2={SCREEN_WIDTH.toString()}
+            y2={(i + 1) * lineSpacing}
+            stroke="#CCC"
+            strokeWidth="2"
           />
         ))}
-      </Canvas>
+      </Svg>
+      {/* Play Zone Overlay */}
+      <View style={[styles.playZone, { backgroundColor: zoneColor }]} />
+      {/* Render Animated Notes */}
+      {notes.map((note) => (
+        <AnimatedNote
+          key={note.id}
+          note={note}
+          isPlaying={isPlaying}
+          onNoteInZone={handleNoteInZone}
+          onNoteCorrect={handleNoteCorrect}
+          onNoteMissed={handleNoteMissed}
+        />
+      ))}
     </View>
   );
 };
 
+export default MusicStaff;
+
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    height: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  canvas: {
-    width: 600, // Wide enough for moving notes
-    height: 100,
+  playZone: {
+    position: 'absolute',
+    left: 100, // Position of the play zone
+    width: 40,
+    top: 0,
+    bottom: 0,
+    zIndex: 10,
   },
 });
-
-export default MusicStaff;

@@ -1,28 +1,21 @@
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
-import * as Animatable from 'react-native-animatable';
 
-const TutorialText = ({ text, delay = 500 }) => {
-  return (
-    <Animatable.Text
-      animation="fadeInUp"
-      delay={delay}
-      style={styles.text}
-      useNativeDriver
-    >
-      {text}
-    </Animatable.Text>
-  );
+/**
+ * TutorialText
+ * - Displays simple instructions or descriptive text.
+ * - Could be integrated with AnimatedText if needed.
+ */
+const TutorialText: React.FC<{ text: string }> = ({ text }) => {
+  return <Text style={styles.text}>{text}</Text>;
 };
+
+export default TutorialText;
 
 const styles = StyleSheet.create({
   text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    marginBottom: 20,
+    color: '#FFF',
+    fontSize: 16,
+    marginVertical: 8,
   },
 });
-
-export default TutorialText;
