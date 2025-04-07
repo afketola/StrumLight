@@ -1,60 +1,84 @@
+// src/screens/CommandScreen.tsx
 import React, { useContext, useState, useEffect } from 'react';
 import {
   SafeAreaView,
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Alert,
   Dimensions,
-  Alert
+  ScrollView
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import DropDownPicker from 'react-native-dropdown-picker';
 import base64 from 'react-native-base64';
 import { BluetoothContext } from '../context/BluetoothContext';
+
+import CircleOfFifths from '../components/CircleOfFifths';
+import ChordDiagram from '../components/ChordDiagram';
+
+// Map "LOW E", "A", etc. to indexes 0..5 for string statuses
+const stringIndexMap: Record<string, number> = {
+  "LOW E": 0,
+  "A": 1,
+  "D": 2,
+  "G": 3,
+  "B": 4,
+  "HIGH E": 5,
+};
+
+// Example chord types
+const chordTypeItems = [
+  { label: "Major", value: "Major" },
+  { label: "Minor", value: "Minor" },
+  { label: "7", value: "7" },
+  { label: "Dim", value: "Dim" },
+  { label: "Dim7", value: "Dim7" },
+  { label: "Aug", value: "Aug" },
+  { label: "Sus2", value: "Sus2" },
+  { label: "Sus4", value: "Sus4" },
+  { label: "maj7", value: "maj7" },
+  { label: "m7", value: "m7" },
+  { label: "7Sus4", value: "7Sus4" },
+];
 
 const SERVICE_UUID = "12345678-1234-5678-1234-56789abcdef0";
 const CHARACTERISTIC_UUID = "abcd1234-5678-1234-5678-abcdef123456";
 
-// Chord objects for each ring.
-const majorChords = [
-  { root: "C", type: "Major" },
-  { root: "G", type: "Major" },
-  { root: "D", type: "Major" },
-  { root: "A", type: "Major" },
-  { root: "E", type: "Major" },
-  { root: "B", type: "Major" },
-  { root: "F#", type: "Major" },
-  { root: "C#", type: "Major" },
-  { root: "G#", type: "Major" },
-  { root: "D#", type: "Major" },
-  { root: "A#", type: "Major" },
-  { root: "F", type: "Major" }
-];
-
-const minorChords = [
-  { root: "A", type: "Minor" },
-  { root: "E", type: "Minor" },
-  { root: "B", type: "Minor" },
-  { root: "F#", type: "Minor" },
-  { root: "C#", type: "Minor" },
-  { root: "G#", type: "Minor" },
-  { root: "D#", type: "Minor" },
-  { root: "A#", type: "Minor" },
-  { root: "F", type: "Minor" },
-  { root: "C", type: "Minor" },
-  { root: "G", type: "Minor" },
-  { root: "D", type: "Minor" }
-];
-
 const CommandScreen = () => {
   const { connected, connectedDevice } = useContext(BluetoothContext) || {};
-  // Initially select the first major chord.
-  const [selectedChord, setSelectedChord] = useState(majorChords[0]);
-  const [feedback, setFeedback] = useState("");
 
-  // Send BLE command based on the selected chord.
-  const sendCommand = async (chord) => {
-    const command = `SHOW:${chord.root}_${chord.type}_CHORD`;
+  // The base note from the circle
+  const [baseNote, setBaseNote] = useState("C");
+  // The chord type
+  const [chordType, setChordType] = useState("Major");
+  // The chord name from BLE or local combo
+  const [parsedChordName, setParsedChordName] = useState("C Major");
+
+  // The 6 string statuses
+  const [stringStatuses, setStringStatuses] = useState(Array(6).fill("NO_NOTE"));
+
+  // For DropDownPicker
+  const [open, setOpen] = useState(false);
+
+  // Called when user taps a wedge => base note changes
+  const handleSelectKey = (keyName: string) => {
+    setBaseNote(keyName);
+    setStringStatuses(Array(6).fill("NO_NOTE"));
+    sendCommand(keyName, chordType);
+  };
+
+  // Called when user picks chord type
+  const handleChordTypeChange = (type: string) => {
+    setChordType(type);
+    setStringStatuses(Array(6).fill("NO_NOTE"));
+    sendCommand(baseNote, type);
+  };
+
+  // BLE command => "SHOW:C_Major_CHORD"
+  const sendCommand = async (root: string, type: string) => {
+    const shortType = type.replace(/\s+/g, "");
+    const command = `SHOW:${root}_${shortType}_CHORD`;
+
     if (!connectedDevice || !connected) {
       Alert.alert("Not Connected", "Please connect to Strumlight-ESP first.");
       return;
@@ -67,210 +91,142 @@ const CommandScreen = () => {
         base64Command
       );
       console.log("Sent command:", command);
-    } catch (error) {
-      console.error("Error sending command:", error);
+    } catch (err) {
+      console.error("Error sending command:", err);
       Alert.alert("Error", "Failed to send command");
     }
   };
 
-  const handleKeyPress = (chord) => {
-    setSelectedChord(chord);
-    sendCommand(chord);
-  };
-
-  // Subscribe to BLE notifications.
+  // BLE subscription
   useEffect(() => {
-    if (connectedDevice) {
-      const subscription = connectedDevice.monitorCharacteristicForService(
-        SERVICE_UUID,
-        CHARACTERISTIC_UUID,
-        (error, characteristic) => {
-          if (error) {
-            console.error("Notification error:", error);
-            return;
-          }
-          const receivedMessage = base64.decode(characteristic.value);
-          console.log("Received message:", receivedMessage);
-          // Expected format: "B Major;Correct"
-          const parts = receivedMessage.split(";");
-          if (parts.length === 2) {
-            const chordParts = parts[0].trim().split(" ");
-            if (chordParts.length >= 2) {
-              const root = chordParts[0];
-              const type = chordParts.slice(1).join(" ");
-              setSelectedChord({ root, type });
-            }
-            setFeedback(parts[1].trim());
-          } else {
-            setSelectedChord({ root: receivedMessage, type: "" });
-            setFeedback("");
-          }
+    if (!connectedDevice) return;
+
+    const subscription = connectedDevice.monitorCharacteristicForService(
+      SERVICE_UUID,
+      CHARACTERISTIC_UUID,
+      (error, characteristic) => {
+        if (error) {
+          console.error("Notification error:", error);
+          return;
         }
-      );
-      return () => subscription?.remove();
-    }
+        const raw = base64.decode(characteristic.value);
+        console.log("Received message:", raw);
+        parseBLEMessage(raw);
+      }
+    );
+
+    return () => {
+      if (subscription && subscription.remove) {
+        subscription.remove();
+      }
+    };
   }, [connectedDevice]);
 
-  // Layout calculations.
-  const { width } = Dimensions.get('window');
-  const containerSize = width * 0.9; // Larger container for outer ring
-  const outerDiameter = containerSize; // Outer ring remains as is.
-  const innerDiameter = containerSize * 0.65; // Increase inner ring diameter to move it out further.
-  const outerRadius = outerDiameter / 2;
-  const innerRadius = innerDiameter / 2;
-  const buttonSize = 40;
+  // e.g. "CHORD: C Major; STATUS: Low E:CORRECT,A:HIGHER..."
+  const parseBLEMessage = (msg: string) => {
+    const [chordPart, statusPart] = msg.split(";");
+    if (!chordPart || !statusPart) {
+      console.log("Invalid message format");
+      return;
+    }
+    const chordLabel = chordPart.replace("CHORD:", "").trim();
+    setParsedChordName(chordLabel);
 
-  // Helper: check if chord is selected.
-  const isSelected = (chord) =>
-    chord.root === selectedChord.root && chord.type === selectedChord.type;
+    const stStr = statusPart.replace("STATUS:", "").trim();
+    const pairs = stStr.split(",");
+    const newStatuses = Array(6).fill("NO_NOTE");
+    pairs.forEach((p) => {
+      const [stringName, st] = p.split(":");
+      if (stringName && st) {
+        const idx = stringIndexMap[stringName.trim().toUpperCase()];
+        if (idx !== undefined) {
+          newStatuses[idx] = st.trim().toUpperCase();
+        }
+      }
+    });
+    setStringStatuses(newStatuses);
+  };
+
+  // Layout
+  const { width } = Dimensions.get('window');
+  // Slightly smaller circle to ensure enough vertical space
+  const circleSize = Math.min(width * 0.85, 300);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chord Selector</Text>
-      </View>
+      {/* We'll skip a custom header to save space,
+          relying on the default "Freestyle" from the stack. */}
 
-      <View style={styles.mainContent}>
-        <Text style={styles.subtitle}>Tap a key to set the target chord</Text>
-        <View style={[styles.circleWrapper, { width: containerSize, height: containerSize }]}>
-          {/* Outer ring: Major chords */}
-          {majorChords.map((chord, index) => {
-            const angle = (2 * Math.PI * index) / majorChords.length - Math.PI / 2;
-            const x = outerRadius + (outerRadius - buttonSize) * Math.cos(angle) - buttonSize / 2;
-            const y = outerRadius + (outerRadius - buttonSize) * Math.sin(angle) - buttonSize / 2;
-            const selectedStyle = isSelected(chord) ? styles.selectedButton : {};
-            return (
-              <TouchableOpacity
-                key={`major-${chord.root}`}
-                style={[styles.keyButton, { left: x, top: y, width: buttonSize, height: buttonSize }, selectedStyle]}
-                onPress={() => handleKeyPress(chord)}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={isSelected(chord) ? ["#FFEB3B", "#FBC02D"] : ["#4CAF50", "#388E3C"]}
-                  style={styles.gradientButton}
-                >
-                  <Text style={styles.keyText}>{chord.root}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            );
-          })}
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* Circle of Fifths */}
+        <CircleOfFifths
+          size={circleSize}
+          onSelectKey={handleSelectKey}
+          selectedKey={baseNote}
+        />
 
-          {/* Inner ring: Minor chords */}
-          {minorChords.map((chord, index) => {
-            const angle = (2 * Math.PI * index) / minorChords.length - Math.PI / 2;
-            const x = outerRadius + (innerRadius - buttonSize) * Math.cos(angle) - buttonSize / 2;
-            const y = outerRadius + (innerRadius - buttonSize) * Math.sin(angle) - buttonSize / 2;
-            const selectedStyle = isSelected(chord) ? styles.selectedButton : {};
-            return (
-              <TouchableOpacity
-                key={`minor-${chord.root}`}
-                style={[styles.keyButton, { left: x, top: y, width: buttonSize, height: buttonSize }, selectedStyle]}
-                onPress={() => handleKeyPress(chord)}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={isSelected(chord) ? ["#FFEB3B", "#FBC02D"] : ["#2196F3", "#1976D2"]}
-                  style={styles.gradientButton}
-                >
-                  <Text style={styles.keyText}>{chord.root}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            );
-          })}
-
-          {/* Center chord display */}
-          <View style={styles.centerChord}>
-            <Text style={styles.centerChordText}>
-              {selectedChord.root} {selectedChord.type}
-            </Text>
+        {/* Row with chord type dropdown + chord name */}
+        <View style={styles.row}>
+          <View style={styles.dropdownWrapper}>
+            <DropDownPicker
+              open={open}
+              value={chordType}
+              items={chordTypeItems}
+              setOpen={setOpen}
+              setValue={(cb) => {
+                const val = typeof cb === 'function' ? cb(chordType) : cb;
+                handleChordTypeChange(val);
+              }}
+              setItems={() => {}}
+              placeholder="Type"
+              style={styles.dropdown}
+              containerStyle={{ width: 120 }}
+              zIndex={9999}
+            />
           </View>
+
         </View>
 
-        {feedback ? (
-          <Text style={[styles.feedbackText, feedback === "Correct" ? styles.correct : styles.incorrect]}>
-            You are {feedback}
-          </Text>
-        ) : null}
-      </View>
+        {/* Chord Diagram at the bottom */}
+        <View style={styles.diagramContainer}>
+          <ChordDiagram chordName={parsedChordName} stringStatuses={stringStatuses} />
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
 export default CommandScreen;
 
+
 const styles = StyleSheet.create({
   safeArea: {
-    flex: 1,
-    backgroundColor: '#FFF',
+    flex: 1, backgroundColor: '#FFF',
   },
-  header: {
-    height: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+  scrollContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  mainContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center', // centers vertically
     paddingVertical: 20,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#444',
-    marginBottom: 20,
-  },
-  circleWrapper: {
-    position: 'relative',
-    marginBottom: 20,
-  },
-  keyButton: {
-    position: 'absolute',
-  },
-  selectedButton: {
-    borderWidth: 3,
-    borderColor: '#FFD54F', // Bright yellow for selected button
-    borderRadius: 20,
-  },
-  gradientButton: {
-    flex: 1,
-    borderRadius: 20,
+  row: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginVertical: 10,
+    // center them horizontally
     justifyContent: 'center',
   },
-  keyText: {
-    fontSize: 14,
-    color: '#FFF',
-    fontWeight: 'bold',
+  dropdownWrapper: {
+    marginRight: 15,
   },
-  centerChord: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    transform: [{ translateX: -50 }, { translateY: -20 }],
-    alignItems: 'center',
-    justifyContent: 'center',
+  dropdown: {
+    backgroundColor: '#fff',
   },
-  centerChordText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#444',
-    textAlign: 'center',
-  },
-  feedbackText: {
+  chordName: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#333',
   },
-  correct: {
-    color: 'green',
-  },
-  incorrect: {
-    color: 'red',
+  diagramContainer: {
+    marginTop: 10,
+    marginBottom: 30, // ensure we have space at the bottom
   },
 });

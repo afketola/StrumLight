@@ -7,7 +7,8 @@ import TutorialScreen from './src/screens/TutorialScreen';
 import CommandScreen from './src/screens/CommandScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import TuningScreen from './src/screens/TuningScreen';
-// ... other screens if needed
+import DemoSongScreen from './src/screens/DemoSongScreen';
+
 
 const Stack = createStackNavigator();
 
@@ -83,6 +84,13 @@ const RootNavigator = () => {
         component={TuningScreen}
         options={{ title: 'Tuning' }}
       />
+
+    <Stack.Screen
+        name="DemoSong"
+        component={DemoSongScreen}
+        options={{ title: 'Demo Song' }}
+      />
+      
       {/* Add more screens as needed */}
     </Stack.Navigator>
   );
