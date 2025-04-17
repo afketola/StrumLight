@@ -64,6 +64,8 @@ const CommandScreen = () => {
   const handleSelectKey = (keyName: string) => {
     setBaseNote(keyName);
     setStringStatuses(Array(6).fill("NO_NOTE"));
+    const newChordName = `${keyName} ${chordType}`;
+    setParsedChordName(newChordName);
     sendCommand(keyName, chordType);
   };
 
@@ -71,6 +73,8 @@ const CommandScreen = () => {
   const handleChordTypeChange = (type: string) => {
     setChordType(type);
     setStringStatuses(Array(6).fill("NO_NOTE"));
+    const newChordName = `${baseNote} ${type}`;
+    setParsedChordName(newChordName);
     sendCommand(baseNote, type);
   };
 
@@ -109,9 +113,13 @@ const CommandScreen = () => {
           console.error("Notification error:", error);
           return;
         }
-        const raw = base64.decode(characteristic.value);
-        console.log("Received message:", raw);
-        parseBLEMessage(raw);
+        
+        // Check if characteristic and its value exist before decoding
+        if (characteristic && characteristic.value) {
+          const raw = base64.decode(characteristic.value);
+          console.log("Received message:", raw);
+          parseBLEMessage(raw);
+        }
       }
     );
 
@@ -184,12 +192,15 @@ const CommandScreen = () => {
               zIndex={9999}
             />
           </View>
-
+          <Text style={styles.chordName}>{parsedChordName}</Text>
         </View>
 
         {/* Chord Diagram at the bottom */}
         <View style={styles.diagramContainer}>
-          <ChordDiagram chordName={parsedChordName} stringStatuses={stringStatuses} />
+          <ChordDiagram 
+            chordName={parsedChordName} 
+            stringStatuses={stringStatuses}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

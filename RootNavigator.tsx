@@ -8,21 +8,23 @@ import CommandScreen from './src/screens/CommandScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import TuningScreen from './src/screens/TuningScreen';
 import DemoSongScreen from './src/screens/DemoSongScreen';
+import LearnSongsScreen from './src/screens/LearnSongsScreen';
 
 
 const Stack = createStackNavigator();
 
 const RootNavigator = () => {
-  const { connected } = useContext(BluetoothContext);
+  const bluetoothContext = useContext(BluetoothContext);
+  const isConnected = bluetoothContext?.connected || false;
   const [initialRoute, setInitialRoute] = useState<string>('BluetoothSetup');
 
   useEffect(() => {
-    if (connected) {
+    if (isConnected) {
       setInitialRoute('Home');
     } else {
       setInitialRoute('BluetoothSetup');
     }
-  }, [connected]);
+  }, [isConnected]);
 
   if (!initialRoute) {
     return null; // or a loading spinner
@@ -34,7 +36,6 @@ const RootNavigator = () => {
       // Universal screenOptions for all screens:
       screenOptions={{
         headerShown: true,          // Show the default header with back arrow
-        headerBackTitleVisible: false,
         headerTintColor: '#555',    // Color of the back arrow and text
         headerStyle: {
           backgroundColor: '#fff',
@@ -47,8 +48,8 @@ const RootNavigator = () => {
       }}
     >
       {/* 
-        For HomeScreen, we might want NO header, 
-        so we can override that below with `options={{ headerShown: false }}` 
+        For screens with custom headers, we hide the default header
+        to avoid having two headers
       */}
       <Stack.Screen
         name="BluetoothSetup"
@@ -66,8 +67,8 @@ const RootNavigator = () => {
         name="Tutorial"
         component={TutorialScreen}
         options={{
-            headerShown: false, // We hide it here to preserve the custom UI
-          }}
+          headerShown: false, // We hide it here to preserve the custom UI
+        }}
       />
       <Stack.Screen
         name="Command"
@@ -77,15 +78,28 @@ const RootNavigator = () => {
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ title: 'Settings' }}
+        options={{ 
+          headerShown: false, // Hide default header to avoid double headers
+          title: 'Settings' 
+        }}
       />
       <Stack.Screen
         name="Tuning"
         component={TuningScreen}
-        options={{ title: 'Tuning' }}
+        options={{ 
+          headerShown: false, // Hide default header to avoid double headers
+          title: 'Tuning' 
+        }}
       />
-
-    <Stack.Screen
+      <Stack.Screen
+        name="LearnSongs"
+        component={LearnSongsScreen}
+        options={{ 
+          headerShown: false, // Hide default header to avoid double headers
+          title: 'Learn Songs' 
+        }}
+      />
+      <Stack.Screen
         name="DemoSong"
         component={DemoSongScreen}
         options={{ title: 'Demo Song' }}

@@ -1,18 +1,7 @@
-// src/components/ChordDiagram.tsx
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Line, Circle, Text as SvgText, G } from 'react-native-svg';
-import { chordShapes } from '../helpers/ChordShapes';
-
-/** Returns a color for each status. */
-function getColorForStatus(status: string): string {
-  switch (status) {
-    case "CORRECT": return "#00cc00"; // bright green
-    case "HIGHER":  return "orange";
-    case "LOWER":   return "red";
-    default:        return "#666";
-  }
-}
+import { chordShapes, chordFingers } from '../helpers/ChordShapes';
 
 /** We'll display 4 frets at a time (or shift them) to handle higher chords. */
 const DISPLAYED_FRETS = 4;
@@ -20,24 +9,60 @@ const DISPLAYED_FRETS = 4;
 interface ChordDiagramProps {
   chordName: string;         // e.g. "C Major"
   stringStatuses: string[];  // e.g. ["NO_NOTE","CORRECT",...], length=6
+  currentFinger?: number | null; // The current finger that should be used (1-4)
 }
 
-const ChordDiagram: React.FC<ChordDiagramProps> = ({ chordName, stringStatuses }) => {
+/** 
+ * We color the main circle based on status and highlight the current finger.
+ * Green for correct, gray for default, and show adjustment indicators.
+ */
+function getMainFillColor(status: string, isCurrent: boolean): string {
+  if (isCurrent) {
+    return "#3b5998"; // Highlight blue for current finger position
+  }
+  switch (status) {
+    case "CORRECT":
+      return "#00cc00"; // bright green
+    case "HIGHER":
+      return "#ff9900"; // orange for higher
+    case "LOWER":
+      return "#ff3300"; // red for lower
+    case "INCORRECT":
+      return "#cc0000"; // dark red for incorrect
+    default:
+      return "#666666"; // gray for no note
+  }
+}
+
+function isStatusIndicatingAdjustment(status: string): boolean {
+  return (status === "HIGHER" || status === "LOWER");
+}
+
+const ChordDiagram: React.FC<ChordDiagramProps> = ({ 
+  chordName, 
+  stringStatuses,
+  currentFinger = null
+}) => {
   const shape = chordShapes[chordName];
+  const fingers = chordFingers[chordName] || Array(6).fill(0);
+  
   if (!shape) {
-    // If chord not found, show nothing or an error placeholder
     return <View style={styles.container} />;
   }
 
   // 1) Identify min & max fretted note
   const fretted = shape.map(s => s.fret).filter(f => f > 0);
   let minFret = fretted.length > 0 ? Math.min(...fretted) : 1;
-  let maxFret = fretted.length > 0 ? Math.max(...fretted) : 4;
+  const maxFret = fretted.length > 0 ? Math.max(...fretted) : 4;
+
+  // If minFret >= 2, let's forcibly show 1. 
+  // That way we never skip the 1st fret for lower chords
+  if (minFret >= 2) {
+    minFret = 1;
+  }
 
   // We'll show 4 frets from minFret..(minFret+3)
   let startFret = minFret;
-  // If chord uses more than 4 frets, you could shift or clamp
-  // For simplicity, we keep startFret = minFret
 
   // 2) Dimensions and geometry
   const diagramWidth = 180;
@@ -57,12 +82,9 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chordName, stringStatuses }
   return (
     <View style={styles.container}>
       <Svg width={diagramWidth} height={diagramHeight}>
-
         {/* Horizontal lines for the displayed fret range */}
         {Array.from({ length: DISPLAYED_FRETS + 1 }, (_, i) => {
-          // i=0 => top line, i=1 => 1st displayed fret, etc.
           const y = offsetY + i * fretSpacing;
-          // Thicker if this is the "nut" and startFret=1
           const isNut = (startFret === 1 && i === 0);
           return (
             <Line
@@ -93,9 +115,9 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chordName, stringStatuses }
           );
         })}
 
-        {/* Fret labels (e.g. "1", "2", "3", "4" or "7", "8", "9", "10") */}
+        {/* Fret labels */}
         {Array.from({ length: DISPLAYED_FRETS }, (_, i) => {
-          const fretNum = startFret + i;  
+          const fretNum = startFret + i;
           const yMid = offsetY + (i + 0.5) * fretSpacing;
           return (
             <SvgText
@@ -112,35 +134,30 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chordName, stringStatuses }
           );
         })}
 
-        {/* X/O markers at the top for strings with fret=-1 or 0 */}
-        {shape.map((info, i) => {
+        {/* X/O markers at the top */}
+        {shape.map((stringInfo, i) => {
           const status = stringStatuses[i] || "NO_NOTE";
-          const color = getColorForStatus(status);
-
           const stringX = offsetX + i * stringSpacing;
           const markerY = offsetY - 12;
 
-          if (info.fret === -1) {
-            // X shape
+          if (stringInfo.fret === -1) {
             return (
               <G
                 key={`x-${i}`}
                 transform={`translate(${stringX}, ${markerY})`}
               >
-                {/* Diagonal lines forming X, colored by status */}
                 <Line
                   x1={-6} y1={-6} x2={6} y2={6}
-                  stroke={color} strokeWidth={3}
+                  stroke="#666" strokeWidth={3}
                 />
                 <Line
                   x1={6} y1={-6} x2={-6} y2={6}
-                  stroke={color} strokeWidth={3}
+                  stroke="#666" strokeWidth={3}
                 />
               </G>
             );
           }
-          else if (info.fret === 0) {
-            // O shape (circle outline)
+          else if (stringInfo.fret === 0) {
             return (
               <Circle
                 key={`o-${i}`}
@@ -148,7 +165,7 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chordName, stringStatuses }
                 cy={markerY}
                 r={8}
                 fill="none"
-                stroke={color}
+                stroke="#666"
                 strokeWidth={3}
               />
             );
@@ -156,31 +173,63 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chordName, stringStatuses }
           return null;
         })}
 
-        {/* Fretted notes -> circles on the correct fret row */}
-        {shape.map((info, i) => {
-          if (info.fret <= 0) return null; // skip X/O
+        {/* Fretted notes with finger numbers */}
+        {shape.map((stringInfo, i) => {
+          if (stringInfo.fret <= 0) return null;
 
           const status = stringStatuses[i] || "NO_NOTE";
-          const fillColor = getColorForStatus(status);
+          const finger = fingers[i];
+          const isCurrent = finger === currentFinger;
+          const mainFillColor = getMainFillColor(status, isCurrent);
 
-          // convert absolute fret -> displayed fret
-          const displayedFret = info.fret - (startFret - 1);
+          const displayedFret = stringInfo.fret - (startFret - 1);
           if (displayedFret < 1 || displayedFret > DISPLAYED_FRETS) {
-            // out of displayed range
             return null;
           }
 
-          // place circle in the middle of displayedFret
           const circleX = offsetX + i * stringSpacing;
           const circleY = offsetY + (displayedFret - 0.5) * fretSpacing;
+
           return (
-            <Circle
-              key={`finger-${i}`}
-              cx={circleX}
-              cy={circleY}
-              r={10}
-              fill={fillColor}
-            />
+            <G key={`fingerGroup-${i}`}>
+              {/* main circle */}
+              <Circle
+                cx={circleX}
+                cy={circleY}
+                r={10}
+                fill={mainFillColor}
+                stroke={isCurrent ? "#ffffff" : "none"}
+                strokeWidth={2}
+              />
+              
+              {/* Finger number */}
+              {finger > 0 && (
+                <SvgText
+                  x={circleX}
+                  y={circleY}
+                  fill={isCurrent ? "#ffffff" : "#ffffff"}
+                  fontSize="12"
+                  textAnchor="middle"
+                  alignmentBaseline="middle"
+                >
+                  {finger}
+                </SvgText>
+              )}
+
+              {/* Adjustment indicator */}
+              {isStatusIndicatingAdjustment(status) && (
+                <Circle
+                  cx={circleX}
+                  cy={
+                    status === "HIGHER"
+                      ? circleY - 12
+                      : circleY + 12
+                  }
+                  r={5}
+                  fill={status === "HIGHER" ? "#ff9900" : "#ff3300"}
+                />
+              )}
+            </G>
           );
         })}
       </Svg>
@@ -188,11 +237,11 @@ const ChordDiagram: React.FC<ChordDiagramProps> = ({ chordName, stringStatuses }
   );
 };
 
-export default ChordDiagram;
-
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
   },
 });
+
+export default ChordDiagram;

@@ -42,7 +42,6 @@ export const BluetoothProvider = ({ children }: { children: React.ReactNode }) =
           // Send a test command upon auto-reconnect
           // Consider changing "TEST" to a command your device will process, e.g., "SHOW:TEST_CHORD"
           await sendCommand(device, "SHOW:TEST_CHORD");
-          Alert.alert("Auto-Reconnect", "Reconnected to your Strumlight-ESP!");
         }
       } catch (error) {
         console.log("Auto-reconnect failed:", error);
@@ -70,7 +69,6 @@ export const BluetoothProvider = ({ children }: { children: React.ReactNode }) =
 
       // Send a test command upon first connection
       await sendCommand(connectedDev, "SHOW:TEST_CHORD");
-      Alert.alert("Connected", "Successfully connected & sent test command!");
     } catch (error) {
       console.error("connectToDevice error:", error);
       Alert.alert("Connection Failed", "Could not establish Bluetooth connection.");

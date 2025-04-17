@@ -190,3 +190,44 @@ export interface ChordStringInfo {
     "Gb/F# 7sus4": ledToFrets([8,6,8,6,8,8]).map(f => ({ fret: f })),
   };
   
+  // Fingering positions for each chord
+  // 0 = no finger, 1 = index, 2 = middle, 3 = ring, 4 = pinky
+  export const chordFingers: Record<string, number[]> = {
+    // A GROUP
+    "A Major": [0, 0, 1, 2, 3, 0],
+    "A Minor": [0, 0, 2, 3, 1, 0],
+    "A 7": [0, 0, 1, 0, 2, 0],
+    "A Dim": [0, 0, 2, 1, 3, 0],
+    "A Dim7": [1, 0, 3, 2, 4, 0],
+    "A Aug": [0, 0, 1, 2, 3, 4],
+    "A Sus2": [0, 0, 1, 2, 4, 0],
+    "A Sus4": [0, 0, 1, 2, 4, 0],
+    "A maj7": [0, 0, 1, 3, 2, 0],
+    "A m7": [0, 0, 1, 3, 2, 0],
+    "A 7sus4": [0, 0, 1, 3, 4, 0],
+  
+    // E GROUP (common beginner chords)
+    "E Major": [0, 2, 3, 1, 0, 0],
+    "E Minor": [0, 2, 3, 0, 0, 0],
+    "E 7": [0, 2, 0, 1, 3, 0],
+  
+    // D GROUP
+    "D Major": [0, 0, 0, 1, 3, 2],
+    "D Minor": [0, 0, 0, 1, 3, 2],
+    "D 7": [0, 0, 0, 1, 2, 3],
+  
+    // G GROUP
+    "G Major": [3, 1, 0, 0, 0, 2],
+    "G Minor": [3, 1, 0, 0, 0, 2],
+    "G 7": [3, 1, 0, 0, 0, 2],
+  
+    // C GROUP
+    "C Major": [0, 3, 2, 0, 1, 0],
+    "C Minor": [0, 1, 3, 4, 2, 0],
+    "C 7": [0, 3, 2, 3, 1, 0],
+  
+    // Add more fingerings as needed...
+  };
+  
+  export default chordShapes;
+  
