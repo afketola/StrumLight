@@ -1,244 +1,152 @@
 // TuningScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
+  SafeAreaView,
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
+  Dimensions,
   StatusBar,
-  Platform,
-  ScrollView,
+  TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import Feather from 'react-native-vector-icons/Feather';
+import { BluetoothContext } from '../context/BluetoothContext';
+import base64 from 'react-native-base64';
 
-// Define navigation types
-type RootStackParamList = {
-  Home: undefined;
-  Tuning: undefined;
-  DemoSong: undefined;
-  LearnSongs: undefined;
-};
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const TUNER_WIDTH = SCREEN_WIDTH * 0.85;
+const DOT_SIZE = 8;
+const MAX_DOTS = 11; // Number of dots to show on each side
+const CENTER_DOT_SIZE = 12;
 
-type NavigationProp = StackNavigationProp<RootStackParamList, 'Tuning'>;
+const STRING_NAMES = ['E4', 'B3', 'G3', 'D3', 'A2', 'E2'];
+const TARGET_FREQUENCIES = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
+const SERVICE_UUID = "12345678-1234-5678-1234-56789abcdef0";
+const CHARACTERISTIC_UUID = "abcd1234-5678-1234-5678-abcdef123456";
 
-// Define string data
-interface StringData {
-  name: string;
-  note: string;
-  frequency: number;
-  isSelected: boolean;
-  tuningStatus: 'in-tune' | 'sharp' | 'flat' | 'not-tuned';
+interface TunerData {
+  frequencies: number[];
+  status: ('CORRECT' | 'HIGH' | 'LOW' | 'NONE')[];
+  deviations: number[]; // -1 to 1, representing how far from correct
 }
 
-const TuningScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp>();
-  const [strings, setStrings] = useState<StringData[]>([
-    { name: 'Low E', note: 'E2', frequency: 82.41, isSelected: false, tuningStatus: 'not-tuned' },
-    { name: 'A', note: 'A2', frequency: 110.00, isSelected: false, tuningStatus: 'not-tuned' },
-    { name: 'D', note: 'D3', frequency: 146.83, isSelected: false, tuningStatus: 'not-tuned' },
-    { name: 'G', note: 'G3', frequency: 196.00, isSelected: false, tuningStatus: 'not-tuned' },
-    { name: 'B', note: 'B3', frequency: 246.94, isSelected: false, tuningStatus: 'not-tuned' },
-    { name: 'High E', note: 'E4', frequency: 329.63, isSelected: false, tuningStatus: 'not-tuned' },
-  ]);
-  const [currentFrequency, setCurrentFrequency] = useState<number>(0);
-  const [tuningDirection, setTuningDirection] = useState<'sharp' | 'flat' | 'in-tune' | null>(null);
-  const [tuningProgress, setTuningProgress] = useState<number>(0);
+const TuningScreen = () => {
+  const navigation = useNavigation();
+  const bluetoothContext = useContext(BluetoothContext);
+  const connected = bluetoothContext?.connected ?? false;
+  const connectedDevice = bluetoothContext?.connectedDevice;
 
-  // Simulate tuning process
+  const [tunerData, setTunerData] = useState<TunerData>({
+    frequencies: Array(6).fill(0),
+    status: Array(6).fill('NONE'),
+    deviations: Array(6).fill(0)
+  });
+
   useEffect(() => {
-    let tuningInterval: NodeJS.Timeout | null = null;
-    
-    const selectedString = strings.find(s => s.isSelected);
-    
-    if (selectedString) {
-      // Simulate frequency changes
-      let simulatedFreq = selectedString.frequency - 5 + Math.random() * 10;
-      setCurrentFrequency(simulatedFreq);
-      
-      // Determine tuning direction
-      if (Math.abs(simulatedFreq - selectedString.frequency) < 0.5) {
-        setTuningDirection('in-tune');
-        setTuningProgress(100);
-        
-        // Update string status after a delay
-        setTimeout(() => {
-          setStrings(prevStrings => 
-            prevStrings.map(s => 
-              s.name === selectedString.name 
-                ? { ...s, tuningStatus: 'in-tune', isSelected: false } 
-                : s
-            )
-          );
-          setTuningDirection(null);
-          setTuningProgress(0);
-        }, 1000);
-      } else if (simulatedFreq > selectedString.frequency) {
-        setTuningDirection('sharp');
-        setTuningProgress(Math.min(100, (simulatedFreq - selectedString.frequency) * 10));
-      } else {
-        setTuningDirection('flat');
-        setTuningProgress(Math.min(100, (selectedString.frequency - simulatedFreq) * 10));
-      }
-      
-      // Continue simulating
-      tuningInterval = setInterval(() => {
-        simulatedFreq = selectedString.frequency - 5 + Math.random() * 10;
-        setCurrentFrequency(simulatedFreq);
-        
-        if (Math.abs(simulatedFreq - selectedString.frequency) < 0.5) {
-          setTuningDirection('in-tune');
-          setTuningProgress(100);
+    if (!connected || !connectedDevice) return;
+
+    const subscription = connectedDevice.monitorCharacteristicForService(
+      SERVICE_UUID,
+      CHARACTERISTIC_UUID,
+      (error, characteristic) => {
+        if (error || !characteristic?.value) return;
+
+        try {
+          const data = base64.decode(characteristic.value);
+          const [command, freqStr] = data.split(';');
           
-          // Update string status after a delay
-          setTimeout(() => {
-            setStrings(prevStrings => 
-              prevStrings.map(s => 
-                s.name === selectedString.name 
-                  ? { ...s, tuningStatus: 'in-tune', isSelected: false } 
-                  : s
-              )
-            );
-            setTuningDirection(null);
-            setTuningProgress(0);
-          }, 1000);
-          
-          if (tuningInterval) {
-            clearInterval(tuningInterval);
+          if (command === 'Tuner') {
+            const frequencies = freqStr.split(',').map(f => parseFloat(f));
+            const deviations = frequencies.map((freq, idx) => {
+              // Calculate deviation between -1 and 1
+              // This should be adjusted based on your actual frequency comparison logic
+              return Math.max(-1, Math.min(1, (freq - TARGET_FREQUENCIES[idx]) / 5));
+            });
+            
+            const status = deviations.map(dev => {
+              if (Math.abs(dev) <= 0.1) return 'CORRECT';
+              return dev > 0 ? 'HIGH' : 'LOW';
+            });
+
+            setTunerData({ frequencies, status, deviations });
           }
-        } else if (simulatedFreq > selectedString.frequency) {
-          setTuningDirection('sharp');
-          setTuningProgress(Math.min(100, (simulatedFreq - selectedString.frequency) * 10));
-        } else {
-          setTuningDirection('flat');
-          setTuningProgress(Math.min(100, (selectedString.frequency - simulatedFreq) * 10));
+        } catch (err) {
+          console.error('Error parsing tuner data:', err);
         }
-      }, 500);
-    }
-    
-    return () => {
-      if (tuningInterval) {
-        clearInterval(tuningInterval);
       }
-    };
-  }, [strings]);
-
-  const selectString = (stringName: string) => {
-    setStrings(prevStrings => 
-      prevStrings.map(s => 
-        s.name === stringName 
-          ? { ...s, isSelected: true } 
-          : { ...s, isSelected: false }
-      )
     );
-    setTuningDirection(null);
-    setTuningProgress(0);
-  };
 
-  const getTuningIndicatorColor = () => {
-    switch (tuningDirection) {
-      case 'sharp':
-        return '#ff9900'; // Orange for sharp
-      case 'flat':
-        return '#ff3300'; // Red for flat
-      case 'in-tune':
-        return '#00cc00'; // Green for in-tune
-      default:
-        return '#cccccc'; // Gray for not tuning
-    }
-  };
+    return () => subscription.remove();
+  }, [connected, connectedDevice]);
 
-  const getStringStatusColor = (status: string) => {
-    switch (status) {
-      case 'in-tune':
-        return '#00cc00'; // Green
-      case 'sharp':
-        return '#ff9900'; // Orange
-      case 'flat':
-        return '#ff3300'; // Red
-      default:
-        return '#cccccc'; // Gray
-    }
+  const renderDots = (stringIndex: number) => {
+    const deviation = tunerData.deviations[stringIndex];
+    const status = tunerData.status[stringIndex];
+    
+    // Calculate which dot should be lit based on deviation
+    const activeDotIndex = Math.round(deviation * MAX_DOTS) + MAX_DOTS;
+    
+    return (
+      <View style={styles.dotsContainer}>
+        {Array.from({ length: MAX_DOTS * 2 + 1 }).map((_, index) => {
+          const isCenter = index === MAX_DOTS;
+          const isActive = index === activeDotIndex;
+          
+          let dotColor = '#E0E0E0'; // Default color
+          if (isActive) {
+            if (status === 'CORRECT') dotColor = '#4CAF50';
+            else if (status === 'HIGH') dotColor = '#FF9800';
+            else if (status === 'LOW') dotColor = '#F44336';
+          }
+          
+          return (
+            <View
+              key={index}
+              style={[
+                styles.dot,
+                isCenter ? styles.centerDot : null,
+                {
+                  width: isCenter ? CENTER_DOT_SIZE : DOT_SIZE,
+                  height: isCenter ? CENTER_DOT_SIZE : DOT_SIZE,
+                  backgroundColor: isCenter ? '#333' : dotColor,
+                  opacity: isCenter ? 0.2 : 1
+                }
+              ]}
+            />
+          );
+        })}
+      </View>
+    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
-      <View style={styles.header}>
-        <Text style={styles.title}>Tuner</Text>
+      <View style={styles.navigationBar}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>←</Text>
+          <Feather name="chevron-left" size={24} color="#333" />
         </TouchableOpacity>
+        <Text style={styles.navTitle}>Tuner</Text>
+        <View style={styles.rightPlaceholder} />
       </View>
-      
-      <ScrollView style={styles.content}>
+
+      <View style={styles.content}>
         <View style={styles.tunerDisplay}>
-          <View style={styles.frequencyDisplay}>
-            <Text style={styles.frequencyText}>
-              {currentFrequency.toFixed(1)} Hz
-            </Text>
-          </View>
-          
-          <View style={styles.tuningIndicator}>
-            <View 
-              style={[
-                styles.indicatorBar, 
-                { 
-                  width: `${tuningProgress}%`,
-                  backgroundColor: getTuningIndicatorColor(),
-                  transform: [
-                    { translateX: tuningDirection === 'flat' ? -50 : 0 },
-                    { translateX: tuningDirection === 'sharp' ? 50 : 0 }
-                  ]
-                }
-              ]} 
-            />
-            <View style={styles.centerLine} />
-          </View>
-          
-          <Text style={styles.tuningDirectionText}>
-            {tuningDirection === 'sharp' ? 'SHARP' : 
-             tuningDirection === 'flat' ? 'FLAT' : 
-             tuningDirection === 'in-tune' ? 'IN TUNE' : 'SELECT A STRING'}
-          </Text>
-        </View>
-        
-        <View style={styles.stringsContainer}>
-          {strings.map((string) => (
-            <TouchableOpacity
-              key={string.name}
-              style={[
-                styles.stringItem,
-                string.isSelected && styles.selectedString
-              ]}
-              onPress={() => selectString(string.name)}
-            >
-              <View style={styles.stringInfo}>
-                <Text style={styles.stringName}>{string.name}</Text>
-                <Text style={styles.stringNote}>{string.note}</Text>
-              </View>
-              <View style={styles.stringStatus}>
-                <View 
-                  style={[
-                    styles.statusIndicator, 
-                    { backgroundColor: getStringStatusColor(string.tuningStatus) }
-                  ]} 
-                />
-                <Text style={styles.statusText}>
-                  {string.tuningStatus === 'in-tune' ? 'In Tune' : 
-                   string.tuningStatus === 'sharp' ? 'Sharp' : 
-                   string.tuningStatus === 'flat' ? 'Flat' : 'Not Tuned'}
-                </Text>
-              </View>
-            </TouchableOpacity>
+          {STRING_NAMES.map((name, index) => (
+            <View key={name} style={styles.stringRow}>
+              <Text style={styles.stringName}>{name}</Text>
+              <View style={styles.stringLine} />
+              {renderDots(index)}
+            </View>
           ))}
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 };
@@ -246,135 +154,83 @@ const TuningScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
-  header: {
+  navigationBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    height: 56,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333333',
+    borderBottomColor: '#F0F0F0',
+    backgroundColor: '#FFFFFF',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 8,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: '#333333',
+  navTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+  },
+  rightPlaceholder: {
+    width: 40,
   },
   content: {
     flex: 1,
-    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   tunerDisplay: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    width: TUNER_WIDTH,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
     padding: 20,
-    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  frequencyDisplay: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  frequencyText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#333333',
-  },
-  tuningIndicator: {
-    height: 60,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 30,
-    marginBottom: 10,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  indicatorBar: {
-    height: '100%',
-    position: 'absolute',
-    left: '50%',
-    transform: [{ translateX: -25 }],
-    borderRadius: 30,
-  },
-  centerLine: {
-    position: 'absolute',
-    left: '50%',
-    width: 2,
-    height: '100%',
-    backgroundColor: '#333333',
-  },
-  tuningDirectionText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#333333',
-  },
-  stringsContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  stringItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  selectedString: {
-    backgroundColor: '#f0f8ff',
-  },
-  stringInfo: {
+  stringRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginVertical: 12,
   },
   stringName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginRight: 10,
-  },
-  stringNote: {
+    width: 40,
     fontSize: 16,
-    color: '#666666',
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
   },
-  stringStatus: {
+  stringLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#DDD',
+    marginHorizontal: 10,
+  },
+  dotsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    position: 'absolute',
+    left: 60,
+    right: 0,
+    justifyContent: 'space-between',
   },
-  statusIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
+  dot: {
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+    backgroundColor: '#E0E0E0',
   },
-  statusText: {
-    fontSize: 14,
-    color: '#666666',
+  centerDot: {
+    width: CENTER_DOT_SIZE,
+    height: CENTER_DOT_SIZE,
+    borderRadius: CENTER_DOT_SIZE / 2,
+    backgroundColor: '#333',
   },
 });
 

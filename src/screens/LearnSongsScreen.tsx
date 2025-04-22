@@ -14,6 +14,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { songs, Song } from '../data/songs';
 
 // Define the navigation param list type
 type RootStackParamList = {
@@ -24,93 +25,10 @@ type RootStackParamList = {
   LearnSongs: undefined;
   Tuning: undefined;
   SongDetail: { songId: string };
+  SongPlay: { song: Song };
 };
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
-
-// Dummy song data
-const songs = [
-  {
-    id: '1',
-    title: 'Wonderwall',
-    artist: 'Oasis',
-    difficulty: 'Beginner',
-    genre: 'Rock',
-    image: require('../assets/images/strummy.png'),
-    progress: 75,
-    chords: ['Em', 'G', 'D', 'A7sus4', 'C', 'D7']
-  },
-  {
-    id: '2',
-    title: 'Let It Be',
-    artist: 'The Beatles',
-    difficulty: 'Beginner',
-    genre: 'Rock',
-    image: require('../assets/images/strummy.png'),
-    progress: 60,
-    chords: ['C', 'G', 'Am', 'F']
-  },
-  {
-    id: '3',
-    title: 'Sweet Home Alabama',
-    artist: 'Lynyrd Skynyrd',
-    difficulty: 'Intermediate',
-    genre: 'Rock',
-    image: require('../assets/images/strummy.png'),
-    progress: 30,
-    chords: ['D', 'C', 'G']
-  },
-  {
-    id: '4',
-    title: 'Hallelujah',
-    artist: 'Leonard Cohen',
-    difficulty: 'Intermediate',
-    genre: 'Folk',
-    image: require('../assets/images/strummy.png'),
-    progress: 45,
-    chords: ['C', 'Am', 'F', 'G', 'Em']
-  },
-  {
-    id: '5',
-    title: 'Wagon Wheel',
-    artist: 'Old Crow Medicine Show',
-    difficulty: 'Intermediate',
-    genre: 'Folk',
-    image: require('../assets/images/strummy.png'),
-    progress: 0,
-    chords: ['G', 'D', 'Em', 'C']
-  },
-  {
-    id: '6',
-    title: 'Sweet Child O\' Mine',
-    artist: 'Guns N\' Roses',
-    difficulty: 'Advanced',
-    genre: 'Rock',
-    image: require('../assets/images/strummy.png'),
-    progress: 10,
-    chords: ['D', 'C', 'G', 'Em']
-  },
-  {
-    id: '7',
-    title: 'Dust in the Wind',
-    artist: 'Kansas',
-    difficulty: 'Advanced',
-    genre: 'Rock',
-    image: require('../assets/images/strummy.png'),
-    progress: 0,
-    chords: ['C', 'D', 'Em', 'G', 'Am']
-  },
-  {
-    id: '8',
-    title: 'Blackbird',
-    artist: 'The Beatles',
-    difficulty: 'Advanced',
-    genre: 'Rock',
-    image: require('../assets/images/strummy.png'),
-    progress: 0,
-    chords: ['G', 'Em', 'C', 'D']
-  }
-];
 
 const LearnSongsScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -123,21 +41,27 @@ const LearnSongsScreen = () => {
     const matchesSearch = song.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          song.artist.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDifficulty = !selectedDifficulty || song.difficulty === selectedDifficulty;
-    const matchesGenre = !selectedGenre || song.genre === selectedGenre;
     
-    return matchesSearch && matchesDifficulty && matchesGenre;
+    return matchesSearch && matchesDifficulty;
   });
 
-  // Get unique genres and difficulties for filters
-  const genres = Array.from(new Set(songs.map(song => song.genre)));
+  // Get unique difficulties for filters
   const difficulties = Array.from(new Set(songs.map(song => song.difficulty)));
 
-  const renderSongItem = ({ item }: { item: typeof songs[0] }) => (
+  const handleSongPress = (song: Song) => {
+    // Navigate to the song play screen with the selected song
+    navigation.navigate('SongPlay', { song });
+  };
+
+  const renderSongItem = ({ item }: { item: Song }) => (
     <TouchableOpacity 
       style={styles.songCard}
-      onPress={() => navigation.navigate('SongDetail', { songId: item.id })}
+      onPress={() => handleSongPress(item)}
     >
-      <Image source={item.image} style={styles.songImage} />
+      <Image 
+        source={typeof item.thumbnailUrl === 'string' ? { uri: item.thumbnailUrl } : item.thumbnailUrl} 
+        style={styles.songImage} 
+      />
       <View style={styles.songInfo}>
         <Text style={styles.songTitle}>{item.title}</Text>
         <Text style={styles.songArtist}>{item.artist}</Text>
@@ -148,12 +72,15 @@ const LearnSongsScreen = () => {
           </View>
           <View style={styles.metaItem}>
             <Feather name="music" size={14} color="#666" />
-            <Text style={styles.metaText}>{item.genre}</Text>
+            <Text style={styles.metaText}>{item.timeSignature} • {item.tempo} BPM</Text>
           </View>
         </View>
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressBar, { width: `${item.progress}%` }]} />
-          <Text style={styles.progressText}>{item.progress}%</Text>
+        <View style={styles.chordContainer}>
+          {item.chords.map((chord, index) => (
+            <View key={index} style={styles.chordChip}>
+              <Text style={styles.chordText}>{chord}</Text>
+            </View>
+          ))}
         </View>
       </View>
       <Feather name="chevron-right" size={20} color="#999" style={styles.chevron} />
@@ -220,24 +147,6 @@ const LearnSongsScreen = () => {
                 difficulty, 
                 selectedDifficulty === difficulty, 
                 () => setSelectedDifficulty(difficulty)
-              )
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.filtersContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtersScroll}
-          >
-            <Text style={styles.filterLabel}>Genre:</Text>
-            {renderFilterChip('All', selectedGenre === null, () => setSelectedGenre(null))}
-            {genres.map(genre => (
-              renderFilterChip(
-                genre, 
-                selectedGenre === genre, 
-                () => setSelectedGenre(genre)
               )
             ))}
           </ScrollView>
@@ -387,24 +296,23 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 5,
   },
-  progressContainer: {
-    height: 6,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 3,
+  chordContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: 8,
-    position: 'relative',
   },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 3,
+  chordChip: {
+    backgroundColor: '#E0E0E0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginRight: 6,
+    marginBottom: 6,
   },
-  progressText: {
-    position: 'absolute',
-    right: 0,
-    top: -18,
+  chordText: {
     fontSize: 12,
-    color: '#666',
+    color: '#333',
+    fontWeight: '500',
   },
   chevron: {
     alignSelf: 'center',

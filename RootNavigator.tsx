@@ -9,6 +9,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import TuningScreen from './src/screens/TuningScreen';
 import DemoSongScreen from './src/screens/DemoSongScreen';
 import LearnSongsScreen from './src/screens/LearnSongsScreen';
+import SongPlayScreen from './src/screens/SongPlayScreen';
 
 
 const Stack = createStackNavigator();
@@ -103,6 +104,14 @@ const RootNavigator = () => {
         name="DemoSong"
         component={DemoSongScreen}
         options={{ title: 'Demo Song' }}
+      />
+      <Stack.Screen
+        name="SongPlay"
+        component={SongPlayScreen}
+        options={{ 
+          headerShown: false, // Hide default header to avoid double headers
+          title: 'Play Song' 
+        }}
       />
       
       {/* Add more screens as needed */}

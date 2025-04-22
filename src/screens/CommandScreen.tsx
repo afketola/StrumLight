@@ -7,14 +7,16 @@ import {
   StyleSheet,
   Alert,
   Dimensions,
-  ScrollView
+  ScrollView,
+  TouchableOpacity,
+  Animated,
 } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import base64 from 'react-native-base64';
 import { BluetoothContext } from '../context/BluetoothContext';
-
 import CircleOfFifths from '../components/CircleOfFifths';
 import ChordDiagram from '../components/ChordDiagram';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 // Map "LOW E", "A", etc. to indexes 0..5 for string statuses
 const stringIndexMap: Record<string, number> = {
@@ -26,7 +28,7 @@ const stringIndexMap: Record<string, number> = {
   "HIGH E": 5,
 };
 
-// Example chord types
+// Example chord types with simplified design
 const chordTypeItems = [
   { label: "Major", value: "Major" },
   { label: "Minor", value: "Minor" },
@@ -40,6 +42,12 @@ const chordTypeItems = [
   { label: "m7", value: "m7" },
   { label: "7Sus4", value: "7Sus4" },
 ];
+
+// Capo positions
+const capoPositions = Array.from({ length: 13 }, (_, i) => ({
+  label: i === 0 ? 'No Capo' : `Capo ${i}`,
+  value: i
+}));
 
 const SERVICE_UUID = "12345678-1234-5678-1234-56789abcdef0";
 const CHARACTERISTIC_UUID = "abcd1234-5678-1234-5678-abcdef123456";
@@ -56,9 +64,18 @@ const CommandScreen = () => {
 
   // The 6 string statuses
   const [stringStatuses, setStringStatuses] = useState(Array(6).fill("NO_NOTE"));
+  const [allStringsCorrect, setAllStringsCorrect] = useState(false);
 
   // For DropDownPicker
   const [open, setOpen] = useState(false);
+
+  // Capo position
+  const [capoPosition, setCapoPosition] = useState(0);
+  const [showCapoDropdown, setShowCapoDropdown] = useState(false);
+
+  // Animation values
+  const scrollX = new Animated.Value(0);
+  const itemWidth = Dimensions.get('window').width / 3; // Show 3 items at a time
 
   // Called when user taps a wedge => base note changes
   const handleSelectKey = (keyName: string) => {
@@ -76,6 +93,30 @@ const CommandScreen = () => {
     const newChordName = `${baseNote} ${type}`;
     setParsedChordName(newChordName);
     sendCommand(baseNote, type);
+  };
+
+  const handleCapoChange = async (position: number) => {
+    setCapoPosition(position);
+    setShowCapoDropdown(false);
+    
+    if (!connectedDevice || !connected) {
+      Alert.alert("Not Connected", "Please connect to Strumlight-ESP first.");
+      return;
+    }
+    
+    try {
+      const command = `CAPO:${position}`;
+      const base64Command = base64.encode(command);
+      await connectedDevice.writeCharacteristicWithoutResponseForService(
+        SERVICE_UUID,
+        CHARACTERISTIC_UUID,
+        base64Command
+      );
+      console.log("Sent capo command:", command);
+    } catch (err) {
+      console.error("Error sending capo command:", err);
+      Alert.alert("Error", "Failed to set capo position");
+    }
   };
 
   // BLE command => "SHOW:C_Major_CHORD"
@@ -130,19 +171,21 @@ const CommandScreen = () => {
     };
   }, [connectedDevice]);
 
-  // e.g. "CHORD: C Major; STATUS: Low E:CORRECT,A:HIGHER..."
+  // Parse BLE message from device
   const parseBLEMessage = (msg: string) => {
     const [chordPart, statusPart] = msg.split(";");
     if (!chordPart || !statusPart) {
       console.log("Invalid message format");
       return;
     }
+    
     const chordLabel = chordPart.replace("CHORD:", "").trim();
     setParsedChordName(chordLabel);
 
     const stStr = statusPart.replace("STATUS:", "").trim();
     const pairs = stStr.split(",");
     const newStatuses = Array(6).fill("NO_NOTE");
+    
     pairs.forEach((p) => {
       const [stringName, st] = p.split(":");
       if (stringName && st) {
@@ -152,7 +195,12 @@ const CommandScreen = () => {
         }
       }
     });
+    
     setStringStatuses(newStatuses);
+    
+    // Check if all strings are correct
+    const allCorrect = newStatuses.every(status => status === "CORRECT");
+    setAllStringsCorrect(allCorrect);
   };
 
   // Layout
@@ -166,41 +214,99 @@ const CommandScreen = () => {
           relying on the default "Freestyle" from the stack. */}
 
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* Circle of Fifths */}
-        <CircleOfFifths
-          size={circleSize}
-          onSelectKey={handleSelectKey}
-          selectedKey={baseNote}
-        />
+        {/* Capo Button - now styled like the image */}
+        <TouchableOpacity
+          style={styles.capoButton}
+          onPress={() => setShowCapoDropdown(!showCapoDropdown)}
+        >
+          <Text style={styles.capoButtonText}>
+            {capoPosition === 0 ? 'No Capo' : `Capo ${capoPosition}`}
+          </Text>
+        </TouchableOpacity>
 
-        {/* Row with chord type dropdown + chord name */}
-        <View style={styles.row}>
-          <View style={styles.dropdownWrapper}>
-            <DropDownPicker
-              open={open}
-              value={chordType}
-              items={chordTypeItems}
-              setOpen={setOpen}
-              setValue={(cb) => {
-                const val = typeof cb === 'function' ? cb(chordType) : cb;
-                handleChordTypeChange(val);
-              }}
-              setItems={() => {}}
-              placeholder="Type"
-              style={styles.dropdown}
-              containerStyle={{ width: 120 }}
-              zIndex={9999}
-            />
+        {showCapoDropdown && (
+          <View style={styles.capoDropdown}>
+            <ScrollView>
+              {capoPositions.map((pos) => (
+                <TouchableOpacity
+                  key={pos.value}
+                  style={[
+                    styles.capoOption,
+                    pos.value === capoPosition && styles.capoOptionSelected
+                  ]}
+                  onPress={() => handleCapoChange(pos.value)}
+                >
+                  <Text style={[
+                    styles.capoOptionText,
+                    pos.value === capoPosition && styles.capoOptionTextSelected
+                  ]}>
+                    {pos.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-          <Text style={styles.chordName}>{parsedChordName}</Text>
+        )}
+
+        {/* Circle of Fifths with chord name in center */}
+        <View style={styles.circleContainer}>
+          <CircleOfFifths
+            size={circleSize}
+            onSelectKey={handleSelectKey}
+            selectedKey={baseNote}
+          />
+          <View style={styles.centerChordName}>
+            <Text style={styles.centerChordText}>{parsedChordName}</Text>
+          </View>
         </View>
 
-        {/* Chord Diagram at the bottom */}
-        <View style={styles.diagramContainer}>
+        {/* Simplified Horizontal Chord Type Selector */}
+        <View style={styles.chordTypeContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chordTypeScroll}
+            snapToInterval={itemWidth}
+            decelerationRate="fast"
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              { useNativeDriver: false }
+            )}
+          >
+            {chordTypeItems.map((item, index) => (
+              <TouchableOpacity
+                key={item.value}
+                style={[
+                  styles.chordTypeItem,
+                  chordType === item.value && styles.chordTypeItemSelected,
+                ]}
+                onPress={() => handleChordTypeChange(item.value)}
+              >
+                <Text style={[
+                  styles.chordTypeText,
+                  chordType === item.value && styles.chordTypeTextSelected
+                ]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Chord Diagram */}
+        <View style={styles.chordContainer}>
+          <Text style={styles.chordTitle}>
+            Current Chord: {parsedChordName}
+          </Text>
           <ChordDiagram 
             chordName={parsedChordName} 
             stringStatuses={stringStatuses}
           />
+          {allStringsCorrect && (
+            <View style={styles.correctIndicator}>
+              <Text style={styles.correctText}>CORRECT!</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -212,32 +318,126 @@ export default CommandScreen;
 
 const styles = StyleSheet.create({
   safeArea: {
-    flex: 1, backgroundColor: '#FFF',
+    flex: 1,
+    backgroundColor: '#FFF',
   },
   scrollContainer: {
     alignItems: 'center',
     paddingVertical: 20,
   },
-  row: {
-    flexDirection: 'row',
+  circleContainer: {
+    position: 'relative',
     alignItems: 'center',
-    marginVertical: 10,
-    // center them horizontally
     justifyContent: 'center',
+    marginBottom: 20,
   },
-  dropdownWrapper: {
-    marginRight: 15,
+  centerChordName: {
+    position: 'absolute',
+    backgroundColor: '#FFF',
+    padding: 15,
+    borderRadius: 40,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
-  dropdown: {
-    backgroundColor: '#fff',
-  },
-  chordName: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  centerChordText: {
+    fontSize: 24,
     color: '#333',
   },
-  diagramContainer: {
+  chordTypeContainer: {
+    height: 40,
+    marginBottom: 20,
+  },
+  chordTypeScroll: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  chordTypeItem: {
+    height: 36,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 4,
+    borderRadius: 18,
+    backgroundColor: '#f5f5f5',
+  },
+  chordTypeItemSelected: {
+    backgroundColor: '#3b5998',
+  },
+  chordTypeText: {
+    fontSize: 15,
+    color: '#666',
+  },
+  chordTypeTextSelected: {
+    color: '#FFF',
+  },
+  chordContainer: {
     marginTop: 10,
-    marginBottom: 30, // ensure we have space at the bottom
+  },
+  chordTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  correctIndicator: {
+    backgroundColor: '#00cc00',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 10,
+  },
+  correctText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  capoButton: {
+    backgroundColor: '#3b5998',
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 25,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  capoButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  capoDropdown: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    padding: 5,
+    maxHeight: 200,
+    width: 120,
+    zIndex: 1000,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  capoOption: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  capoOptionSelected: {
+    backgroundColor: '#f0f8ff',
+  },
+  capoOptionText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  capoOptionTextSelected: {
+    color: '#3b5998',
   },
 });

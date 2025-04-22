@@ -8,7 +8,8 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
-  ScrollView
+  ScrollView,
+  Linking
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -73,21 +74,26 @@ const HomeScreen = () => {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Quick Stats Section - Moved to top */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>12</Text>
-              <Text style={styles.statLabel}>Songs Learned</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>45</Text>
-              <Text style={styles.statLabel}>Minutes Practiced</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>3</Text>
-              <Text style={styles.statLabel}>Chords Mastered</Text>
-            </View>
-          </View>
+          {/* Beta Promotion Banner - Replacing Stats Section */}
+          <TouchableOpacity 
+            style={styles.betaBanner}
+            onPress={() => Linking.openURL('https://getstrumlight.com')}
+          >
+            <LinearGradient
+              colors={['#4A90E2', '#357ABD']}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}
+              style={styles.betaGradient}
+            >
+              <View style={styles.betaContent}>
+                <View style={styles.betaTextContainer}>
+                  <Text style={styles.betaTitle}>🚀 Pre-order StrumLight Beta</Text>
+                  <Text style={styles.betaSubtext}>Get early access to all features</Text>
+                </View>
+                <Feather name="arrow-right" size={20} color="#FFF" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
 
           {/* Welcome Section */}
           <View style={styles.welcomeSection}>
@@ -234,6 +240,7 @@ const styles = StyleSheet.create({
   headerRight: {
     width: 40,
     alignItems: 'flex-end',
+    marginRight: -10,
   },
   logo: {
     width: 40,
@@ -251,10 +258,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bluetoothIndicator: {
-    marginRight: 15,
+    padding: 5,
   },
   icon: {
-    marginRight: 15,
+    marginRight: 0,
   },
   iconButton: {
     padding: 5,
@@ -264,36 +271,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 10,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 5,
-  },
-  statCard: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    padding: 15,
-    width: '30%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 5,
-    textAlign: 'center',
   },
   welcomeSection: {
     paddingHorizontal: 20,
@@ -365,5 +342,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     color: '#555',
+  },
+  betaBanner: {
+    marginHorizontal: 20,
+    marginVertical: 10,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  betaGradient: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  betaContent: {
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  betaTextContainer: {
+    flex: 1,
+  },
+  betaTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 2,
+  },
+  betaSubtext: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
   },
 });

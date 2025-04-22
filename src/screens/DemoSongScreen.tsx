@@ -20,6 +20,7 @@ import StaffView from '../components/StaffView';
 import ChordDiagram from '../components/ChordDiagram';
 import { chordShapes } from '../helpers/ChordShapes';
 import { BluetoothContext } from '../context/BluetoothContext';
+import TimingIndicator from '../components/TimingIndicator';
 
 // Define navigation types
 type RootStackParamList = {
@@ -185,7 +186,7 @@ const DemoSongScreen: React.FC = () => {
     sendChordCommand(firstNote.chord);
     
     // Set a timer for each note
-    const noteDuration = 5000; // 5 seconds per note
+    const noteDuration = 8000; // 8 seconds per note for more practice time
     
     const startNoteTimer = (step: number) => {
       if (step >= TUTORIAL_SONG.notes.length) {
@@ -201,22 +202,21 @@ const DemoSongScreen: React.FC = () => {
       setCurrentFinger(note.finger || null);
       setMessage(`Current chord: ${note.chord}`);
       setNoteResult(null);
+      setIsNotePlayed(false);
       sendChordCommand(note.chord);
       
-      // Set a timer to move to the next note
+      // Set a timer to check if note was played
       const timer = setTimeout(() => {
-        // If the note wasn't played correctly, mark it as incorrect
         if (!isNotePlayed) {
           setNoteResult('incorrect');
-          setMessage(`Incorrect. Moving to next note...`);
+          setMessage("Missed note. Let's try again!");
           
-          // Wait a moment before moving to the next note
+          // Go back to the same note after a short delay
           setTimeout(() => {
-            setTutorialStep(prev => prev + 1);
-            startNoteTimer(step + 1);
+            startNoteTimer(step);
           }, 1500);
         } else {
-          // If the note was played correctly, move to the next note
+          // Move to next note only if current note was played correctly
           setTutorialStep(prev => prev + 1);
           startNoteTimer(step + 1);
         }
@@ -234,10 +234,7 @@ const DemoSongScreen: React.FC = () => {
       const deltaTime = (now - lastUpdateTimeRef.current) / 1000;
       lastUpdateTimeRef.current = now;
       
-      setCurrentTime(prevTime => {
-        const newTime = prevTime + deltaTime;
-        return newTime;
-      });
+      setCurrentTime(prevTime => prevTime + deltaTime);
     }, 16);
   };
   
@@ -365,7 +362,7 @@ const DemoSongScreen: React.FC = () => {
     });
     
     setStringStatuses(newStatuses);
-    
+
     // Check if all strings are correct
     const allCorrect = newStatuses.every(status => status === "CORRECT");
     setAllStringsCorrect(allCorrect);
@@ -500,7 +497,7 @@ const DemoSongScreen: React.FC = () => {
       }
     };
   }, []);
-  
+
   // BLE subscription
   useEffect(() => {
     if (!connectedDevice || !connected) return;
@@ -564,11 +561,11 @@ const DemoSongScreen: React.FC = () => {
 
       <View style={styles.mainContent}>
         <View style={styles.staffContainer}>
-          <StaffView
-            noteEvents={showTutorial ? TUTORIAL_SONG.notes : DEMO_SONG.notes}
+          <TimingIndicator
             currentTime={currentTime}
-            zoneStart={ZONE_START}
-            zoneEnd={ZONE_END}
+            notes={showTutorial ? TUTORIAL_SONG.notes : DEMO_SONG.notes}
+            width={Dimensions.get('window').width - 40}
+            isPlaying={isPlaying}
           />
         </View>
 
